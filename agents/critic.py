@@ -1,17 +1,23 @@
-from core.llm import call_llm
+from core.llm import call_llm, load_prompt_file
 
-def load_prompt(filepath: str) -> tuple[str, str]:
-    with open(filepath, encoding="utf-8") as f:
-        content = f.read()
-    system, user = content.split("### User")
-    return system.replace("### System", "").strip(), user.strip()
+def critique_argument(topic: str, argument: str, strict: bool = False, temperature: float = 0.7) -> str:
+    system_prompt, user_prompt_template = load_prompt_file("prompts/critic.prompt.md")
 
-def critique_argument(topic: str, argument: str) -> str:
-    system, user = load_prompt("prompts/critic.prompt.md")
+    strict_note = (
+        "Try to identify flaws or limitations that haven't been pointed out before. "
+        "Be especially strict, and avoid repeating prior critique phrasing or shallow observations."
+        if strict else ""
+    )
+
+    user_prompt = user_prompt_template.format(
+        topic=topic.strip(),
+        argument=argument.strip(),
+        strict_note=strict_note
+    )
 
     messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user.format(topic=topic, argument=argument)}
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
     ]
 
-    return call_llm(messages)
+    return call_llm(messages, temperature=temperature).strip()
