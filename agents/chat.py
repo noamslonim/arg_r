@@ -1,4 +1,9 @@
 from core.llm import call_llm
+from uuid import uuid4
+from collections import deque  # Needed for topic history
+
+# Maintain recent topic history (max 20)
+recent_topics = deque(maxlen=20)
 
 def prompt_user(prompt: str) -> str:
     return input(prompt).strip()
@@ -17,11 +22,19 @@ def choose_topic() -> str:
 
     system, user = load_prompt("prompts/topic_suggestion.prompt.md")
 
+    # Format topic history into Markdown bullet list
+    recent_str = "\n".join(f"- {t}" for t in recent_topics) or "None yet."
+    system = system.replace("{{recent_topics}}", recent_str)
+
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": user}
     ]
-    return call_llm(messages)
+    topic = call_llm(messages).strip()
+
+    # Save topic to history
+    recent_topics.append(topic)
+    return topic
 
 def get_initial_argument(topic: str) -> str:
     choice = prompt_user("Do you want to write the initial argument? (yes/no): ").lower()
